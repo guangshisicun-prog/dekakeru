@@ -15,11 +15,9 @@
   h2 { font-size: 15px; color: var(--sub); margin: 0 0 8px; }
   .card { background: var(--card); border-radius: 14px; padding: 14px 16px; margin-bottom: 12px; }
   label { display: block; font-size: 13px; color: var(--sub); margin: 10px 0 4px; }
-  input, select, textarea { width: 100%; font-size: 16px; padding: 10px; border: 1px solid var(--line); border-radius: 10px; background: #fff; color: var(--text); font-family: inherit; }
-  textarea { min-height: 90px; }
+  input, select { width: 100%; font-size: 16px; padding: 10px; border: 1px solid var(--line); border-radius: 10px; background: #fff; color: var(--text); font-family: inherit; }
   button { font-size: 15px; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--line); background: #fff; color: var(--text); font-family: inherit; }
   button.primary { background: var(--main); color: #fff; border-color: var(--main); }
-  button.danger { color: var(--warn); }
   .row { display: flex; gap: 8px; align-items: center; }
   .row > * { flex: 1; }
   .time-row #h-now { flex: 0 0 auto; }
@@ -37,18 +35,41 @@
   .opt span:first-child { white-space: nowrap; }
   .opt:first-child { border-top: 0; }
   .opt.best { font-weight: 700; }
+  details.opt { display: block; }
+  details.opt summary { display: flex; gap: 8px; cursor: pointer; list-style: none; }
+  details.opt summary span:nth-child(2) { margin-left: auto; }
+  details.opt summary::-webkit-details-marker { display: none; }
+  details.opt .arrow { color: var(--muted, #888); transition: transform .15s; }
+  details.opt[open] .arrow { transform: rotate(90deg); }
+  details.opt .steps { margin-top: 8px; font-weight: 400; }
   .step { padding: 6px 0 6px 14px; border-left: 3px solid var(--line); margin-left: 4px; }
   .step { display: flex; gap: 8px; }
   .step b { flex: 0 0 auto; min-width: 46px; }
-  .leg { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; }
-  .leg .head { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
-  .leg .head button { padding: 4px 8px; font-size: 13px; }
   nav { position: fixed; left: 0; right: 0; bottom: 0; display: flex; background: #fff; border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom); }
   nav button { flex: 1; border: 0; border-radius: 0; padding: 14px 0; background: none; color: var(--sub); }
   nav button.on { color: var(--main); font-weight: 700; }
   .page { display: none; }
   .page.on { display: block; }
   .gap { height: 8px; }
+  #t-dir { margin-bottom: 8px; }
+  .bus { display: block; padding: 8px 0; border-top: 1px solid var(--line); }
+  .bus summary { display: flex; gap: 10px; align-items: baseline; list-style: none; cursor: pointer; }
+  .bus summary::-webkit-details-marker { display: none; }
+  .bus .stops { margin: 8px 0 2px 56px; }
+  .bus .stops div { display: flex; gap: 8px; padding: 2px 0 2px 10px; border-left: 3px solid var(--line); font-size: 13px; }
+  .bus .stops div span:first-child { min-width: 40px; font-variant-numeric: tabular-nums; color: var(--sub); }
+  .bus .stops div:first-child, .bus .stops div:last-child { font-weight: 700; }
+  .bus:first-child { border-top: 0; }
+  .bus b { flex: 0 0 auto; min-width: 46px; font-variant-numeric: tabular-nums; }
+  .bus .no { flex: 0 0 auto; min-width: 44px; text-align: center; font-size: 13px; font-weight: 700; color: var(--main); border: 1px solid var(--main); border-radius: 6px; padding: 1px 4px; }
+  .bus .what { min-width: 0; }
+  .bus .what small { display: block; color: var(--sub); font-size: 12px; }
+  .bus .what em { font-style: normal; font-weight: 700; color: var(--text); }
+  .bus.past { opacity: .4; }
+  .bus.past[open] { opacity: 1; }
+  .bus.next { background: #eef4fd; margin: 0 -16px; padding: 8px 16px; }
+  .bus.next b::after { content: ' つぎ'; font-size: 11px; color: var(--main); }
+  #t-past { display: block; width: 100%; margin: 0 0 4px; padding: 8px; font-size: 13px; color: var(--sub); background: none; border: 1px dashed var(--line); }
 </style>
 </head>
 <body>
@@ -81,35 +102,29 @@
   <div class="card" id="h-result"></div>
 </section>
 
-<!-- ルート -->
-<section class="page" id="p-routes">
-  <h1>ルート</h1>
-  <div id="r-list"></div>
-  <button class="primary" id="r-add">＋ ルートを足す</button>
-</section>
-
-<!-- ルートの編集 -->
-<section class="page" id="p-edit">
-  <h1>ルートの編集</h1>
+<!-- 時刻表 -->
+<section class="page" id="p-tt">
+  <h1 id="t-title">時刻表</h1>
   <div class="card">
-    <div class="row">
-      <div><label for="e-from">発</label><input id="e-from" placeholder="例：家"></div>
-      <div><label for="e-to">着</label><input id="e-to" placeholder="例：大学"></div>
+    <div class="seg" id="t-dir">
+      <button data-dir="go">行き</button>
+      <button data-dir="back">帰り</button>
     </div>
-    <label for="e-buffer">着きたい時刻の何分前に着く？（よゆう）</label>
-    <input id="e-buffer" type="number" min="0" inputmode="numeric">
+    <select id="t-which"></select>
+    <label>曜日</label>
+    <div class="seg" id="t-day">
+      <button data-day="weekday">平日</button>
+      <button data-day="saturday">土曜</button>
+      <button data-day="holiday">日祝</button>
+    </div>
+    <label id="t-area-label">行き先（天神・博多駅は着くじゅん）</label>
+    <div class="seg" id="t-area">
+      <button data-area="">ぜんぶ</button>
+      <button data-area="天神">天神</button>
+      <button data-area="博多駅">博多駅</button>
+    </div>
   </div>
-  <h2>家から順番に</h2>
-  <div id="e-legs"></div>
-  <div class="row">
-    <button id="e-add-walk">＋ 歩き・待ち</button>
-    <button id="e-add-ride">＋ 電車・バス</button>
-  </div>
-  <div class="gap"></div>
-  <div class="row">
-    <button class="danger" id="e-delete">このルートを消す</button>
-    <button class="primary" id="e-done">できた</button>
-  </div>
+  <div class="card" id="t-list"></div>
 </section>
 
 <!-- 設定 -->
@@ -129,7 +144,7 @@
 
 <nav>
   <button data-tab="home" class="on">ホーム</button>
-  <button data-tab="routes">ルート</button>
+  <button data-tab="tt">時刻表</button>
   <button data-tab="settings">設定</button>
 </nav>
 
@@ -256,7 +271,7 @@ function planFrom(route, leaveAt, day) {
 
 // ===== データ =====
 function newId() { return Math.random().toString(36).slice(2, 10); }
-function emptyData() { return { version: 1, routes: [], lastFrom: null, lastTo: null, lastArrive: '09:00', lastDepart: '17:00', lastMode: 'arrive' }; }
+function emptyData() { return { version: 1, routes: [], lastFrom: null, lastTo: null, lastArrive: '09:00', lastDepart: '17:00', lastMode: 'arrive', timetables: [] }; }
 // 発・着が分かれる前のデータ（名前だけ）は、名前の「→」で分ける
 function fixRoutes(d) {
   for (const r of d.routes) {
@@ -291,18 +306,16 @@ function validData(d) {
 // ===== 画面 =====
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-let editingId = null;
 let dayOverride = null; // 自分で平日／土日祝を選んだとき
 window.__today = null;  // テストで「今日」を決めるため
 const today = () => window.__today || new Date();
 
 function showPage(name) {
   document.querySelectorAll('.page').forEach((p) => p.classList.toggle('on', p.id === 'p-' + name));
-  document.querySelectorAll('nav button').forEach((b) => b.classList.toggle('on', b.dataset.tab === name || (name === 'edit' && b.dataset.tab === 'routes')));
+  document.querySelectorAll('nav button').forEach((b) => b.classList.toggle('on', b.dataset.tab === name));
+  window.scrollTo(0, 0); // 時刻表は、このあと「つぎの便」までスクロールする
   if (name === 'home') renderHome();
-  if (name === 'routes') renderRoutes();
-  if (name === 'edit') renderEdit();
-  window.scrollTo(0, 0);
+  if (name === 'tt') renderTimetable();
 }
 
 function currentDay() { return dayOverride || dayTypeOf(today()); }
@@ -347,14 +360,17 @@ function renderHome() {
   renderResult();
 }
 
+// おすすめ以外は、押すとその便の道のりが開く
 function optRow(p, cls, label) {
   if (!p) return '';
-  return `<div class="opt ${cls}"><span>${label}</span><span>${fmt(p.leave)} に出る → ${fmt(p.arrive)} 着</span></div>`;
+  const row = `<span>${label}</span><span>${fmt(p.leave)} に出る → ${fmt(p.arrive)} 着</span>`;
+  if (cls === 'best') return `<div class="opt ${cls}">${row}</div>`;
+  return `<details class="opt ${cls}"><summary>${row}<span class="arrow">›</span></summary>${stepsHtml(p, '')}</details>`;
 }
 
 function renderResult() {
   const box = $('#h-result');
-  if (!data.routes.length) { box.innerHTML = '<p class="muted">まず「ルート」でよく使うルートを登録してね。</p>'; return; }
+  if (!data.routes.length) { box.innerHTML = '<p class="muted">ルートがまだありません。Claudeに作ってもらったファイルを「設定→読みこむ」で入れてね。</p>'; return; }
   const dep = mode() === 'depart';
   const arrive = toMin($('#h-arrive').value);
   if (arrive === null) { box.innerHTML = `<p class="muted">${dep ? '出発時刻' : '着きたい時刻'}を入れてね。</p>`; return; }
@@ -371,14 +387,13 @@ function renderResult() {
     <h2>${esc(route.from || '出発地')}を出る時刻</h2>
     <div class="big" id="h-leave">${fmt(r.best.leave)}</div>
     <p class="muted">${fmt(r.best.arrive)} 着（${fmt(arrive)} の${route.buffer || 0}分前まで）</p>
-    <div id="h-steps">${r.best.steps.map((s) => `<div class="step"><b>${fmt(s.start)}</b><span>${s.leg.type === 'ride' ? '🚃 ' : '🚶 '}${esc(s.leg.label || (s.leg.type === 'ride' ? '電車・バス' : '歩き'))}（${s.end - s.start}分）${s.wait ? `<span class="muted"> 待ち${s.wait}分</span>` : ''}</span></div>`).join('')}
-      <div class="step"><b>${fmt(r.best.arrive)}</b><span>到着</span></div></div>
+    ${stepsHtml(r.best)}
     <div class="gap"></div>
     <div id="h-opts">${optRow(r.earlier, '', '1本前')}${optRow(r.best, 'best', 'おすすめ')}${optRow(r.later, 'late', '1本後（遅刻）')}</div>`;
 }
 
-function stepsHtml(p) {
-  return `<div id="h-steps">${p.steps.map((s) => `<div class="step"><b>${fmt(s.start)}</b><span>${s.leg.type === 'ride' ? '🚃 ' : '🚶 '}${esc(s.leg.label || (s.leg.type === 'ride' ? '電車・バス' : '歩き'))}（${s.end - s.start}分）${s.wait ? `<span class="muted"> 待ち${s.wait}分</span>` : ''}</span></div>`).join('')}
+function stepsHtml(p, id = 'h-steps') {
+  return `<div class="steps"${id ? ` id="${id}"` : ''}>${p.steps.map((s) => `<div class="step"><b>${fmt(s.start)}</b><span>${s.leg.type === 'ride' ? '🚃 ' : '🚶 '}${esc(s.leg.label || (s.leg.type === 'ride' ? '電車・バス' : '歩き'))}（${s.end - s.start}分）${s.wait ? `<span class="muted"> 待ち${s.wait}分</span>` : ''}</span></div>`).join('')}
       <div class="step"><b>${fmt(p.arrive)}</b><span>到着</span></div></div>`;
 }
 
@@ -398,31 +413,52 @@ function renderDepart(box, route, r, leaveAt) {
     <div id="h-opts">${optRow(r.earlier, '', '1本前（もう出発）')}${optRow(r.best, 'best', 'おすすめ')}${optRow(r.later, '', '1本後')}</div>`;
 }
 
-function renderRoutes() {
-  $('#r-list').innerHTML = data.routes.length
-    ? data.routes.map((r) => `<div class="card route" data-id="${r.id}"><b>${esc(routeName(r))}</b><div class="muted">${r.legs.map((l) => esc(l.label || (l.type === 'ride' ? '電車・バス' : '歩き'))).join(' → ') || '道のりなし'}</div></div>`).join('')
-    : '<p class="muted">まだルートがありません。</p>';
-}
-
-function editingRoute() { return data.routes.find((r) => r.id === editingId); }
-
-function renderEdit() {
-  const r = editingRoute();
-  if (!r) return showPage('routes');
-  $('#e-from').value = r.from;
-  $('#e-to').value = r.to;
-  $('#e-buffer').value = r.buffer || 0;
-  $('#e-legs').innerHTML = r.legs.map((l, i) => `
-    <div class="leg" data-i="${i}">
-      <div class="head"><b>${i + 1}. ${l.type === 'ride' ? '🚃 電車・バス' : '🚶 歩き・待ち'}</b>
-        <span><button data-act="up">↑</button> <button data-act="down">↓</button> <button data-act="del" class="danger">消す</button></span></div>
-      <label>名前</label><input data-f="label" value="${esc(l.label || '')}" placeholder="${l.type === 'ride' ? '例：地下鉄 天神→九大学研都市' : '例：家→駅'}">
-      <label>${l.type === 'ride' ? '乗っている時間（分）※着く時刻を書いていない便に使う' : 'かかる時間（分）'}</label><input data-f="minutes" type="number" min="0" inputmode="numeric" value="${l.minutes}">
-      ${l.type === 'ride' ? `
-      <label>平日の発車時刻</label><textarea data-f="weekday" placeholder="7: 05 20 35&#10;8: 00 15">${timetableText(l.times.weekday)}</textarea>
-      <label>土日祝の発車時刻</label><textarea data-f="holiday">${timetableText(l.times.holiday)}</textarea>
-      <p class="muted">「7: 05 20 35」のように時刻表のまま書いても、「7:05 7:20」と並べてもOK。便ごとに着く時刻がちがうときは「6:50→7:43」と書くと、その時刻で計算します。</p>` : ''}
-    </div>`).join('');
+// ===== 時刻表 =====
+let ttDay = null;   // 自分で選んだ曜日
+let ttArea = '';    // 行き先のしぼりこみ
+let ttShowPast = false; // きょうの過ぎた便も出す
+function ttDayOf(date) { const d = date.getDay(); return d === 0 ? 'holiday' : d === 6 ? 'saturday' : 'weekday'; }
+function renderTimetable() {
+  // 行き（dir なし）と帰り（dir: 'back'）を切りかえる。両方あるときだけボタンを出す
+  const all = data.timetables || [];
+  const dirOf = (t) => (t.dir === 'back' ? 'back' : 'go');
+  const dirs = [...new Set(all.map(dirOf))];
+  const dir = dirs.includes(data.lastTtDir) ? data.lastTtDir : (dirs[0] || 'go');
+  $('#t-dir').hidden = dirs.length < 2;
+  document.querySelectorAll('#t-dir button').forEach((b) => b.classList.toggle('on', b.dataset.dir === dir));
+  const back = dir === 'back';
+  $('#t-area-label').textContent = back ? '乗る場所（天神・博多駅は老司に着くじゅん）' : '行き先（天神・博多駅は着くじゅん）';
+  const list = all.filter((t) => dirOf(t) === dir);
+  const sel = $('#t-which');
+  sel.innerHTML = list.map((t) => `<option value="${esc(t.id)}">${esc(t.name)}</option>`).join('');
+  if (data.lastTimetable && list.some((t) => t.id === data.lastTimetable)) sel.value = data.lastTimetable;
+  sel.hidden = list.length < 2;
+  const tt = list.find((t) => t.id === sel.value);
+  $('#t-title').textContent = tt ? tt.name : '時刻表';
+  const day = ttDay || ttDayOf(today());
+  document.querySelectorAll('#t-day button').forEach((b) => b.classList.toggle('on', b.dataset.day === day));
+  document.querySelectorAll('#t-area button').forEach((b) => b.classList.toggle('on', b.dataset.area === ttArea));
+  const box = $('#t-list');
+  if (!tt) { box.innerHTML = '<p class="muted">時刻表がまだありません。Claudeに作ってもらったファイルを「設定→読みこむ」で入れてね。</p>'; return; }
+  // [分, 系統, 行き先, 経由, 方面, 方面に着く分, 停車バス停, 乗るバス停]（帰りは「方面」が乗る場所、着くのは老司）
+  const buses = (tt[day] || []).filter((b) => !ttArea || String(b[4] || '').includes(ttArea));
+  // 天神・博多駅にしぼったときは、そこに早く着くじゅん
+  if (ttArea) buses.sort((a, b) => (a[5] || a[0]) - (b[5] || b[0]) || a[0] - b[0]);
+  if (!buses.length) { box.innerHTML = '<p class="muted">この曜日の便はありません。</p>'; return; }
+  const now = today(), nowMin = now.getHours() * 60 + now.getMinutes();
+  const isToday = day === ttDayOf(now);
+  // きょうは、いまから出る便を上から（過ぎた便はボタンで出す）
+  const pastCount = isToday ? buses.filter((b) => b[0] < nowMin).length : 0;
+  const shown = isToday && !ttShowPast ? buses.filter((b) => b[0] >= nowMin) : buses;
+  const next = isToday ? shown.findIndex((b) => b[0] >= nowMin) : -1;
+  const pastBtn = pastCount ? `<button id="t-past">${ttShowPast ? '過ぎた便をかくす' : `過ぎた便も見る（${pastCount}本）`}</button>` : '';
+  if (!shown.length) { box.innerHTML = `${pastBtn}<p class="muted">きょうの便はもうありません。</p>`; return; }
+  // 押すと、停まるバス停と時刻がひらく（7つ目に [[バス停, 分], ...]）
+  const stops = (b) => Array.isArray(b[6]) && b[6].length ? `<div class="stops">${b[6].map((st) => `<div><span>${fmt(st[1])}</span><span>${esc(st[0])}</span></div>`).join('')}</div>` : '';
+  box.innerHTML = pastBtn + shown.map((b, i) => `<details class="bus${i === next ? ' next' : ''}${isToday && b[0] < nowMin ? ' past' : ''}"><summary><b>${fmt(b[0])}</b><span class="no">${esc(b[1])}</span><span class="what">${esc(b[2])}行<small>${back && b[7] ? `${esc(b[7])}から・` : ''}${b[5] ? `<em>${esc(back ? (b[6] && b[6].length ? b[6][b[6].length - 1][0] : '') : (b[4] || ''))} ${fmt(b[5])}着</em>・` : ''}${esc(b[3] || '')}</small></span></summary>${stops(b)}</details>`).join('');
+  // 過ぎた便も出したときだけ、つぎの便までスクロール
+  const n = box.querySelector('.bus.next');
+  if (ttShowPast && n && n.scrollIntoView) n.scrollIntoView({ block: 'center' });
 }
 
 // ===== 操作 =====
@@ -449,54 +485,12 @@ $('#h-now').addEventListener('click', () => {
   save(); renderHome();
 });
 document.querySelectorAll('#h-mode button').forEach((b) => b.addEventListener('click', () => { data.lastMode = b.dataset.mode; save(); renderHome(); }));
+document.querySelectorAll('#t-dir button').forEach((b) => b.addEventListener('click', () => { data.lastTtDir = b.dataset.dir; save(); renderTimetable(); }));
+$('#t-which').addEventListener('change', (e) => { data.lastTimetable = e.target.value; save(); renderTimetable(); });
+document.querySelectorAll('#t-day button').forEach((b) => b.addEventListener('click', () => { ttDay = b.dataset.day; renderTimetable(); }));
+document.querySelectorAll('#t-area button').forEach((b) => b.addEventListener('click', () => { ttArea = b.dataset.area; renderTimetable(); }));
+$('#t-list').addEventListener('click', (e) => { if (e.target.id === 't-past') { ttShowPast = !ttShowPast; renderTimetable(); } });
 document.querySelectorAll('#h-day button').forEach((b) => b.addEventListener('click', () => { dayOverride = b.dataset.day; renderHome(); }));
-
-$('#r-add').addEventListener('click', () => {
-  const r = { id: newId(), from: '', to: '', name: '', buffer: 5, legs: [] };
-  data.routes.push(r);
-  save();
-  editingId = r.id;
-  showPage('edit');
-});
-$('#r-list').addEventListener('click', (e) => {
-  const c = e.target.closest('.route');
-  if (c) { editingId = c.dataset.id; showPage('edit'); }
-});
-
-for (const f of ['from', 'to']) {
-  $('#e-' + f).addEventListener('input', (e) => { const r = editingRoute(); r[f] = e.target.value.trim(); r.name = routeName(r); save(); });
-}
-$('#e-buffer').addEventListener('input', (e) => { editingRoute().buffer = Math.max(0, parseInt(e.target.value, 10) || 0); save(); });
-$('#e-add-walk').addEventListener('click', () => { editingRoute().legs.push({ type: 'walk', label: '', minutes: 5 }); save(); renderEdit(); });
-$('#e-add-ride').addEventListener('click', () => { editingRoute().legs.push({ type: 'ride', label: '', minutes: 10, times: { weekday: [], holiday: [] } }); save(); renderEdit(); });
-$('#e-legs').addEventListener('change', (e) => {
-  const box = e.target.closest('.leg'); if (!box) return;
-  const leg = editingRoute().legs[+box.dataset.i];
-  const f = e.target.dataset.f;
-  if (f === 'label') leg.label = e.target.value;
-  if (f === 'minutes') leg.minutes = Math.max(0, parseInt(e.target.value, 10) || 0);
-  if (f === 'weekday' || f === 'holiday') { leg.times[f] = parseTimetable(e.target.value); e.target.value = timetableText(leg.times[f]); }
-  save();
-});
-$('#e-legs').addEventListener('click', (e) => {
-  const act = e.target.dataset.act; if (!act) return;
-  const legs = editingRoute().legs, i = +e.target.closest('.leg').dataset.i;
-  if (act === 'del') { if (!confirm('この道のりを消す？')) return; legs.splice(i, 1); }
-  if (act === 'up' && i > 0) [legs[i - 1], legs[i]] = [legs[i], legs[i - 1]];
-  if (act === 'down' && i < legs.length - 1) [legs[i + 1], legs[i]] = [legs[i], legs[i + 1]];
-  save(); renderEdit();
-});
-$('#e-delete').addEventListener('click', () => {
-  if (!confirm('このルートを消す？')) return;
-  data.routes = data.routes.filter((r) => r.id !== editingId);
-  save(); showPage('routes');
-});
-$('#e-done').addEventListener('click', () => {
-  // 入力中の欄があれば先に反映させる
-  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
-  const r = editingRoute();
-  data.lastFrom = r.from; data.lastTo = r.to; save(); showPage('home');
-});
 
 $('#s-export').addEventListener('click', () => {
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -516,6 +510,31 @@ $('#s-file').addEventListener('change', async (e) => {
 function importText(text) {
   let d;
   try { d = JSON.parse(text); } catch (err) { d = null; }
+  // 時刻表だけのファイル（{"addTimetables":[...]}）も、いまのデータに足す。同じidは上書き
+  if (d && Array.isArray(d.addTimetables) && d.addTimetables.every((t) => t && t.id && t.name && Array.isArray(t.weekday))) {
+    if (!confirm(`この時刻表を足す？\n${d.addTimetables.map((t) => t.name).join('、')}`)) return false;
+    data.timetables = data.timetables || [];
+    for (const t of d.addTimetables) {
+      const i = data.timetables.findIndex((x) => x.id === t.id);
+      if (i >= 0) data.timetables[i] = t; else data.timetables.push(t);
+    }
+    save();
+    $('#s-msg').textContent = `時刻表を足しました（${d.addTimetables.length}件）。`;
+    return true;
+  }
+  // ルートだけのファイル（{"addRoutes":[...]}）は、いまのデータに足す。同じidは上書き
+  if (d && Array.isArray(d.addRoutes) && validData({ routes: d.addRoutes })) {
+    const names = d.addRoutes.map((r) => r.name || `${r.from}→${r.to}`).join('、');
+    if (!confirm(`このルートを足す？\n${names}`)) return false;
+    for (const r of fixRoutes({ routes: d.addRoutes }).routes) {
+      if (!r.id) r.id = newId();
+      const i = data.routes.findIndex((x) => x.id === r.id);
+      if (i >= 0) data.routes[i] = r; else data.routes.push(r);
+    }
+    save(); renderHome();
+    $('#s-msg').textContent = `ルートを足しました（${d.addRoutes.length}件、ぜんぶで${data.routes.length}件）。`;
+    return true;
+  }
   if (!validData(d)) { $('#s-msg').textContent = 'このファイルは読みこめませんでした。'; return false; }
   if (!confirm('いまのデータを、このファイルの中身に入れかえる？')) return false;
   data = fixRoutes(Object.assign(emptyData(), d));

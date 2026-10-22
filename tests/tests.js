@@ -171,7 +171,7 @@ group('逆算', () => {
 group('ホーム画面', () => {
   test('ルートがないときは案内が出る', async () => {
     const app = await loadApp();
-    ok(app.$('#h-result').textContent.includes('ルートを登録'));
+    ok(app.$('#h-result').textContent.includes('設定→読みこむ'));
   });
   test('家を出る時刻が出る（木曜なので平日）', async () => {
     const app = await loadApp(sampleData());
@@ -185,6 +185,38 @@ group('ホーム画面', () => {
     eq(steps.map((st) => st.querySelector('b').textContent), ['8:05', '8:15', '8:35', '8:43']);
     ok(steps.every((st) => st.querySelector(':scope > span')), '説明は span に入る');
     eq(app.w.getComputedStyle(steps[0]).display, 'flex');
+  });
+  test('1本前・1本後は押すと道のりが開く（おすすめは開かない）', async () => {
+    const app = await loadApp(sampleData());
+    const opts = [...app.$('#h-opts').children];
+    eq(opts.map((o) => o.tagName), ['DETAILS', 'DIV', 'DETAILS']);
+    const first = opts[0];
+    ok(!first.open, 'はじめは閉じている');
+    first.querySelector('summary').click();
+    ok(first.open, '押すと開く');
+    const times = [...first.querySelectorAll('.step b')].map((b) => b.textContent);
+    eq(times[0], first.querySelector('summary span:nth-child(2)').textContent.split(' ')[0], '出る時刻からはじまる');
+    eq(times.at(-1), first.querySelector('summary span:nth-child(2)').textContent.match(/→ (\S+) 着/)[1], '着く時刻でおわる');
+    ok(first.querySelector('.step span').textContent.length > 0, '乗りものの説明がある');
+  });
+  test('押せる行も、時刻は右にそろう', async () => {
+    const app = await loadApp(sampleData());
+    const rules = [...app.w.document.styleSheets].flatMap((s) => [...s.cssRules]);
+    const rule = rules.find((r) => r.selectorText === 'details.opt summary span:nth-child(2)');
+    eq(rule && rule.style.marginLeft, 'auto');
+  });
+  test('開いた道のりは、おすすめの道のりと id がかぶらない', async () => {
+    const app = await loadApp(sampleData());
+    eq(app.$('#h-result').querySelectorAll('#h-steps').length, 1);
+  });
+  test('出発時刻で調べたときも、1本後を押すと道のりが開く', async () => {
+    const app = await loadApp(sampleData());
+    app.click('#h-mode [data-mode="depart"]');
+    app.set('#h-arrive', '07:58');
+    const later = [...app.$('#h-opts').children].at(-1);
+    eq(later.tagName, 'DETAILS');
+    later.querySelector('summary').click();
+    ok(later.querySelectorAll('.step').length >= 2);
   });
   test('着きたい時刻を変えると計算しなおして、覚えておく', async () => {
     const app = await loadApp(sampleData());
@@ -269,48 +301,6 @@ group('出発時刻で調べる', () => {
 });
 
 // =====================================================================
-group('ルートの編集', () => {
-  test('ルートを足して、道のりと時刻表を入れるとホームで使える', async () => {
-    const app = await loadApp();
-    app.click('nav [data-tab="routes"]');
-    app.click('#r-add');
-    app.set('#e-from', '家');
-    app.set('#e-to', 'バイト');
-    app.set('#e-buffer', '0');
-    app.click('#e-add-walk');
-    app.set(app.$('#e-legs [data-f="minutes"]'), '7', 'change');
-    app.click('#e-add-ride');
-    const legs = app.$('#e-legs').querySelectorAll('.leg');
-    app.set(legs[1].querySelector('[data-f="minutes"]'), '12', 'change');
-    app.set(legs[1].querySelector('[data-f="weekday"]'), '17: 00 30\n18: 00', 'change');
-    eq(legs[1].querySelector('[data-f="weekday"]').value, '17:00 17:30 18:00', '読みとった時刻にそろえて見せる');
-    app.click('#e-done');
-    app.set('#h-arrive', '18:00');
-    eq(app.$('#h-leave').textContent, '17:23');
-    const r = app.stored().routes[0];
-    eq([r.from, r.to, r.name], ['家', 'バイト', '家→バイト']); eq(r.legs.length, 2);
-    eq([app.$('#h-from').value, app.$('#h-to').value], ['家', 'バイト']);
-  });
-  test('道のりの順番を入れかえ・消せる', async () => {
-    const app = await loadApp(sampleData());
-    app.click('nav [data-tab="routes"]');
-    app.click(app.$('.route'));
-    app.click(app.$('.leg[data-i="1"] [data-act="up"]'));
-    eq(app.stored().routes[0].legs.map((l) => l.type), ['ride', 'walk', 'walk']);
-    app.click(app.$('.leg[data-i="0"] [data-act="del"]'));
-    eq(app.stored().routes[0].legs.length, 2);
-  });
-  test('ルートを消せる', async () => {
-    const app = await loadApp(sampleData());
-    app.click('nav [data-tab="routes"]');
-    app.click(app.$('.route'));
-    app.click('#e-delete');
-    eq(app.stored().routes, []);
-    ok(app.$('#p-routes').classList.contains('on'));
-  });
-});
-
-// =====================================================================
 group('発と着', () => {
   // 家→大学（電車）、家→大学（バス・おそく出られる）、大学→家、家→バイト
   function multiData() {
@@ -323,8 +313,6 @@ group('発と着', () => {
   test('前の形（名前だけ）のデータは、名前の「→」で発と着に分ける', async () => {
     const app = await loadApp(sampleData());
     eq([app.$('#h-from').value, app.$('#h-to').value], ['家', '大学']);
-    app.click('nav [data-tab="routes"]'); app.click(app.$('.route'));
-    eq([app.$('#e-from').value, app.$('#e-to').value], ['家', '大学']);
   });
   test('「発」の場所の名前で「〇〇を出る時刻」と出る', async () => {
     const app = await loadApp(sampleData());
@@ -374,11 +362,187 @@ group('発と着', () => {
 });
 
 // =====================================================================
+group('時刻表', () => {
+  // [分, 系統, 行き先, 経由, 方面]
+  function sampleTT() {
+    return { id: 'roji', name: '老司 → 天神・博多', stop: '老司',
+      weekday: [[T('7:50')[0], '47', '博多駅', '普通・清水四', '博多駅'], [T('8:05')[0], '62', '福岡タワー', '普通・天神', '天神'], [T('8:20')[0], '48', '博多駅', '普通', '博多駅']],
+      saturday: [[T('9:00')[0], '47', '博多ふ頭', '普通', '博多駅']],
+      holiday: [] };
+  }
+  test('時刻表がないときは案内が出る', async () => {
+    const app = await loadApp(sampleData());
+    app.click('nav [data-tab="tt"]');
+    ok(app.$('#p-tt').classList.contains('on'));
+    ok(app.$('#t-list').textContent.includes('設定→読みこむ'));
+  });
+  test('時刻表だけのファイルを読みこむと足される（ルートは消えない）', async () => {
+    const app = await loadApp(sampleData());
+    ok(app.w.importText(JSON.stringify({ addTimetables: [sampleTT()] })));
+    eq(app.stored().timetables.map((t) => t.id), ['roji']);
+    eq(app.stored().routes.length, 1);
+    ok(app.w.importText(JSON.stringify({ addTimetables: [sampleTT()] })));
+    eq(app.stored().timetables.length, 1, '同じidは上書き');
+  });
+  test('木曜は平日の時刻表で、いまから出る便が上から出て、つぎの便に印がつく', async () => {
+    const app = await loadApp(Object.assign(sampleData(), { timetables: [sampleTT()] }));
+    app.click('nav [data-tab="tt"]');
+    eq(app.$('#t-day .on').dataset.day, 'weekday');
+    const rows = [...app.$('#t-list').querySelectorAll('.bus')];
+    eq(rows.map((r) => r.querySelector('b').textContent), ['8:05', '8:20'], '8:00より前の便は出さない');
+    eq(rows[0].querySelector('.no').textContent, '62');
+    ok(rows[0].querySelector('.what').textContent.startsWith('福岡タワー行'));
+    ok(rows[0].classList.contains('next'), '8:05がつぎの便（いちばん上）');
+    eq(app.$('#t-past').textContent, '過ぎた便も見る（1本）');
+  });
+  test('「過ぎた便も見る」で、過ぎた便もうすく出る（もう一度押すとかくれる）', async () => {
+    const app = await loadApp(Object.assign(sampleData(), { timetables: [sampleTT()] }));
+    app.click('nav [data-tab="tt"]');
+    app.click('#t-past');
+    const rows = [...app.$('#t-list').querySelectorAll('.bus')];
+    eq(rows.map((r) => r.querySelector('b').textContent), ['7:50', '8:05', '8:20']);
+    ok(rows[0].classList.contains('past'), '7:50は過ぎた便');
+    ok(rows[1].classList.contains('next'), '8:05がつぎの便');
+    eq(app.$('#t-past').textContent, '過ぎた便をかくす');
+    app.click('#t-past');
+    eq(app.$('#t-list').querySelectorAll('.bus').length, 2);
+  });
+  test('きょうの便がもうないときは、そう出る', async () => {
+    const tt = sampleTT(); tt.weekday = [tt.weekday[0]];
+    const app = await loadApp(Object.assign(sampleData(), { timetables: [tt] }));
+    app.click('nav [data-tab="tt"]');
+    ok(app.$('#t-list').textContent.includes('きょうの便はもうありません'));
+    app.click('#t-past');
+    eq([...app.$('#t-list').querySelectorAll('.bus b')].map((b) => b.textContent), ['7:50']);
+  });
+  test('ほかの曜日を見るときは、ぜんぶの便を出す', async () => {
+    const tt = sampleTT(); tt.saturday.unshift([T('6:00')[0], '47', '博多駅', '普通', '博多駅']);
+    const app = await loadApp(Object.assign(sampleData(), { timetables: [tt] }));
+    app.click('nav [data-tab="tt"]');
+    app.click('#t-day [data-day="saturday"]');
+    eq([...app.$('#t-list').querySelectorAll('.bus b')].map((b) => b.textContent), ['6:00', '9:00']);
+    ok(!app.$('#t-past'), 'ボタンは出ない');
+  });
+  test('過ぎた便も出したときは、つぎの便までスクロールする', async () => {
+    const app = await loadApp(Object.assign(sampleData(), { timetables: [sampleTT()] }));
+    const calls = [];
+    app.w.HTMLElement.prototype.scrollIntoView = function () { calls.push(this.querySelector('b').textContent); };
+    app.w.scrollTo = () => calls.push('上');
+    app.click('nav [data-tab="tt"]');
+    ok(!calls.includes('8:05'), 'つぎの便がいちばん上なのでスクロールしない');
+    app.click('#t-past');
+    eq(calls.at(-1), '8:05', '過ぎた便も出したら、つぎの便へ');
+  });
+  test('土曜・日祝をえらべる（便がない日は案内）', async () => {
+    const app = await loadApp(Object.assign(sampleData(), { timetables: [sampleTT()] }));
+    app.click('nav [data-tab="tt"]');
+    app.click('#t-day [data-day="saturday"]');
+    eq([...app.$('#t-list').querySelectorAll('.bus b')].map((b) => b.textContent), ['9:00']);
+    ok(!app.$('#t-list .next'), 'きょうではないので印はつかない');
+    app.click('#t-day [data-day="holiday"]');
+    ok(app.$('#t-list').textContent.includes('便はありません'));
+  });
+  test('行き先で天神・博多駅にしぼれる', async () => {
+    const app = await loadApp(Object.assign(sampleData(), { timetables: [sampleTT()] }));
+    app.click('nav [data-tab="tt"]');
+    app.click('#t-day [data-day="weekday"]');
+    app.click('#t-past');
+    app.click('#t-area [data-area="天神"]');
+    eq([...app.$('#t-list').querySelectorAll('.bus .no')].map((b) => b.textContent), ['62']);
+    app.click('#t-area [data-area="博多駅"]');
+    eq([...app.$('#t-list').querySelectorAll('.bus .no')].map((b) => b.textContent), ['47', '48']);
+    app.click('#t-area [data-area=""]');
+    eq(app.$('#t-list').querySelectorAll('.bus').length, 3);
+  });
+  test('天神・博多駅にしぼると、着く時刻のじゅんに並び、着く時刻も出る', async () => {
+    const tt = sampleTT();
+    // 7:50発は8:40着、8:20発は8:35着（あとから出ても先に着く）
+    tt.weekday[0].push(T('8:40')[0]); tt.weekday[1].push(T('8:30')[0]); tt.weekday[2].push(T('8:35')[0]);
+    const app = await loadApp(Object.assign(sampleData(), { timetables: [tt] }));
+    app.click('nav [data-tab="tt"]');
+    app.click('#t-past');
+    eq([...app.$('#t-list').querySelectorAll('.bus b')].map((b) => b.textContent), ['7:50', '8:05', '8:20'], 'ぜんぶは出るじゅん');
+    app.click('#t-area [data-area="博多駅"]');
+    eq([...app.$('#t-list').querySelectorAll('.bus b')].map((b) => b.textContent), ['8:20', '7:50'], '博多駅に早く着くじゅん');
+    ok(app.$('#t-list .bus small').textContent.startsWith('博多駅 8:35着'));
+    ok(app.$('#t-list .bus').classList.contains('next'), 'つぎの便（8:20）に印');
+  });
+  test('便を押すと、停まるバス停と時刻がひらく', async () => {
+    const tt = sampleTT();
+    tt.weekday[1].push(T('8:30')[0], [['老司', T('8:05')[0]], ['大橋一丁目', T('8:15')[0]], ['天神南', T('8:30')[0]]]);
+    const app = await loadApp(Object.assign(sampleData(), { timetables: [tt] }));
+    app.click('nav [data-tab="tt"]');
+    const bus = app.$('#t-list .bus.next');
+    ok(!bus.open, 'はじめは閉じている');
+    bus.querySelector('summary').click();
+    ok(bus.open, '押すとひらく');
+    eq([...bus.querySelectorAll('.stops > div')].map((d) => d.textContent), ['8:05老司', '8:15大橋一丁目', '8:30天神南']);
+    eq([...app.$('#t-list').querySelectorAll('.bus')].at(-1).querySelectorAll('.stops').length, 0, 'バス停のデータがない便は、ひらいても何も出ない');
+  });
+  function backTT() {
+    // 帰り：[分, 系統, 行き先, 経由, 乗る場所, 老司に着く分, 停車バス停, 乗るバス停]
+    return { id: 'roji-back', name: '天神・博多 → 老司', dir: 'back',
+      weekday: [[T('8:10')[0], 'W1', '那珂川営業所', '普通・天神-大橋', '天神', T('8:45')[0], [['天神北', T('8:10')[0]], ['老司', T('8:45')[0]]], '天神北'],
+        [T('8:15')[0], '47', '那珂川営業所', '普通・清水四', '博多駅', T('8:40')[0], [['博多駅前A', T('8:15')[0]], ['老司', T('8:40')[0]]], '博多駅前A']],
+      saturday: [], holiday: [] };
+  }
+  test('行き／帰りのボタンで、帰りの時刻表に切りかわる（覚えておく）', async () => {
+    const app = await loadApp(Object.assign(sampleData(), { timetables: [sampleTT(), backTT()] }));
+    app.click('nav [data-tab="tt"]');
+    ok(!app.$('#t-dir').hidden, '両方あるのでボタンが出る');
+    eq(app.$('#t-dir .on').dataset.dir, 'go');
+    eq(app.$('#t-title').textContent, '老司 → 天神・博多');
+    app.click('#t-dir [data-dir="back"]');
+    eq(app.$('#t-title').textContent, '天神・博多 → 老司');
+    eq(app.stored().lastTtDir, 'back');
+    ok(app.$('#t-area-label').textContent.startsWith('乗る場所'));
+    const small = app.$('#t-list .bus small').textContent;
+    ok(small.startsWith('天神北から・老司 8:45着'), small);
+  });
+  test('帰りで天神・博多駅にしぼると、老司に早く着くじゅん', async () => {
+    const app = await loadApp(Object.assign(sampleData(), { timetables: [sampleTT(), backTT()], lastTtDir: 'back' }));
+    app.click('nav [data-tab="tt"]');
+    eq([...app.$('#t-list').querySelectorAll('.bus b')].map((b) => b.textContent), ['8:10', '8:15'], 'ぜんぶは出るじゅん');
+    app.click('#t-area [data-area="博多駅"]');
+    eq([...app.$('#t-list').querySelectorAll('.bus .no')].map((b) => b.textContent), ['47']);
+    ok(app.$('#t-list .bus small').textContent.startsWith('博多駅前Aから・老司 8:40着'), '乗るのりばの名前が出る');
+  });
+  test('時刻表が片方だけなら、行き／帰りのボタンは出さない', async () => {
+    const app = await loadApp(Object.assign(sampleData(), { timetables: [sampleTT()] }));
+    app.click('nav [data-tab="tt"]');
+    ok(app.$('#t-dir').hidden);
+  });
+  test('土曜日はさいしょから土曜の時刻表になる', async () => {
+    const app = await loadApp(Object.assign(sampleData(), { timetables: [sampleTT()] }));
+    eq(app.w.ttDayOf(new Date(2026, 9, 24)), 'saturday');
+    eq(app.w.ttDayOf(new Date(2026, 9, 25)), 'holiday');
+    eq(app.w.ttDayOf(new Date(2026, 9, 26)), 'weekday');
+  });
+});
+
+// =====================================================================
 group('バックアップ', () => {
   test('読みこむと入れかわる', async () => {
     const app = await loadApp();
     ok(app.w.importText(JSON.stringify(sampleData())));
-    eq([app.stored().routes[0].from, app.stored().routes[0].to], ['家', '大学']);
+  });
+  test('ルートだけのファイルは、いまのルートに足す（消さない）', async () => {
+    const app = await loadApp(sampleData());
+    const add = sampleRoute(); add.id = 'new1'; add.from = '家'; add.to = 'US';
+    ok(app.w.importText(JSON.stringify({ addRoutes: [add] })));
+    eq(app.stored().routes.map((r) => r.to), ['大学', 'US']);
+  });
+  test('ルートだけのファイルで、同じidのルートは上書きする', async () => {
+    const app = await loadApp(sampleData());
+    const id = app.stored().routes[0].id;
+    const add = sampleRoute(); add.id = id; add.from = '家'; add.to = '図書館';
+    ok(app.w.importText(JSON.stringify({ addRoutes: [add] })));
+    eq(app.stored().routes.map((r) => r.to), ['図書館']);
+  });
+  test('ルートだけのファイルでも、こわれていたら読みこまない', async () => {
+    const app = await loadApp(sampleData());
+    eq(app.w.importText('{"addRoutes":[{"from":"家"}]}'), false);
+    eq(app.stored().routes.length, 1);
   });
   test('変なファイルは読みこまない', async () => {
     const app = await loadApp(sampleData());
@@ -390,16 +554,21 @@ group('バックアップ', () => {
     localStorage.setItem(KEY, '{こわれ');
     const frame = document.getElementById('app');
     await new Promise((r) => { frame.onload = r; frame.src = '../index.html?' + Date.now(); });
-    ok(frame.contentWindow.document.querySelector('#h-result').textContent.includes('ルートを登録'));
+    ok(frame.contentWindow.document.querySelector('#h-result').textContent.includes('設定→読みこむ'));
   });
 });
 
 group('全体', () => {
   test('どの画面も、エラーなく開ける', async () => {
     const app = await loadApp(sampleData());
-    for (const t of ['routes', 'settings', 'home']) app.click(`nav [data-tab="${t}"]`);
-    app.click('nav [data-tab="routes"]'); app.click(app.$('.route')); app.click('#e-done');
+    for (const t of ['tt', 'settings', 'home']) app.click(`nav [data-tab="${t}"]`);
     eq(app.w.__errors, []);
+  });
+  test('ルート欄はない（下のボタンはホームと設定だけ）', async () => {
+    const app = await loadApp(sampleData());
+    eq([...app.$('nav').querySelectorAll('button')].map((b) => b.textContent), ['ホーム', '時刻表', '設定']);
+    eq(app.$('#p-routes'), null);
+    eq(app.$('#p-edit'), null);
   });
 });
 
