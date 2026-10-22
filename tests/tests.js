@@ -362,6 +362,73 @@ group('発と着', () => {
 });
 
 // =====================================================================
+group('雨の日モード', () => {
+  // 雨の日ルート：家→バス停 歩き15分 → バス20分 → 歩き8分
+  function rainRoute() {
+    const r = sampleRoute({ id: 'r1-rain', name: undefined, from: '家', to: '大学', rain: true });
+    r.legs[0] = { type: 'walk', label: '家→バス停', minutes: 15 };
+    r.legs[1] = { type: 'ride', label: 'バス', minutes: 20, times: { weekday: T('7:50 8:05'), holiday: [] } };
+    return r;
+  }
+  function rainData(extra = {}) {
+    const job = sampleRoute({ id: 'r4', name: undefined, from: '家', to: 'バイト' });
+    return Object.assign({ version: 1, routes: [sampleRoute(), rainRoute(), job], lastFrom: '家', lastTo: '大学', lastArrive: '09:00' }, extra);
+  }
+  test('ふだんは雨の日ルートを使わない（ボタンは見出しの横に小さく）', async () => {
+    const app = await loadApp(rainData());
+    eq(app.$('#h-rain').textContent, '☔ 雨の日');
+    ok(app.$('#h-rain').parentElement.classList.contains('head'), '見出しの横にある');
+    ok(app.$('#h-rain').getBoundingClientRect().height < 40, '小さいボタン');
+    eq(app.$('#h-leave').textContent, '8:05');
+    ok(!app.$('#h-rain').classList.contains('on'));
+    ok(!app.$('#h-result .rain-note'), '雨の日のひとことは出ない');
+    eq([...app.$('#h-to').options].map((o) => o.value), ['大学', 'バイト'], '着の一覧に同じ場所が2つ出ない');
+  });
+  test('☔ボタンで雨の日ルートになり、きょうの日付を覚える', async () => {
+    const app = await loadApp(rainData());
+    app.click('#h-rain');
+    ok(app.$('#h-rain').classList.contains('on'));
+    eq(app.$('#h-rain').textContent, '☔ 雨の日 オン');
+    eq(app.stored().rainDay, '2026-10-22');
+    eq(app.$('#h-leave').textContent, '7:50');
+    eq(app.$('#h-result .rain-note').textContent, '☔ 雨の日ルート（きょうだけ）');
+    ok(app.$('#h-steps').textContent.includes('家→バス停'));
+  });
+  test('もう一度押すと、ふだんにもどる', async () => {
+    const app = await loadApp(rainData());
+    app.click('#h-rain');
+    app.click('#h-rain');
+    ok(!app.$('#h-rain').classList.contains('on'));
+    eq(app.stored().rainDay, null);
+    eq(app.$('#h-leave').textContent, '8:05');
+  });
+  test('つぎの日には自動でふだんにもどる', async () => {
+    const app = await loadApp(rainData({ rainDay: '2026-10-21' }));
+    ok(!app.$('#h-rain').classList.contains('on'));
+    eq(app.$('#h-leave').textContent, '8:05');
+  });
+  test('雨の日ルートがない発・着は、ふだんのルートを使ってそう出す', async () => {
+    const app = await loadApp(rainData({ rainDay: '2026-10-22', lastTo: 'バイト' }));
+    ok(app.$('#h-rain').classList.contains('on'));
+    eq(app.$('#h-leave').textContent, '8:05');
+    ok(app.$('#h-result .rain-note').textContent.includes('雨の日のルートがまだない'));
+  });
+  test('出発時刻で調べるときも、雨の日ルートを使う', async () => {
+    const app = await loadApp(rainData({ rainDay: '2026-10-22', lastMode: 'depart', lastDepart: '07:40' }));
+    eq(app.$('#h-leave').textContent, '8:33', '7:50に出て 8:05のバス→8:25→歩き8分');
+    eq(app.$('#h-result .rain-note').textContent, '☔ 雨の日ルート（きょうだけ）');
+  });
+  test('雨の日ルートのファイルを読みこむとき「（雨の日）」と出る', async () => {
+    const app = await loadApp(sampleData());
+    const asked = [];
+    app.w.confirm = (m) => { asked.push(m); return true; };
+    ok(app.w.importText(JSON.stringify({ addRoutes: [rainRoute()] })));
+    ok(asked[0].includes('家→大学（雨の日）'), asked[0]);
+    eq(app.stored().routes.find((r) => r.id === 'r1-rain').rain, true);
+  });
+});
+
+// =====================================================================
 group('時刻表', () => {
   // [分, 系統, 行き先, 経由, 方面]
   function sampleTT() {
@@ -569,6 +636,93 @@ group('全体', () => {
     eq([...app.$('nav').querySelectorAll('button')].map((b) => b.textContent), ['ホーム', '時刻表', '設定']);
     eq(app.$('#p-routes'), null);
     eq(app.$('#p-edit'), null);
+  });
+});
+
+// =====================================================================
+group('見出し・到着時刻・道のりの見た目（2026-10-23）', () => {
+  test('ホームの一番上の見出し「いつ出ればいい？」はない', async () => {
+    const app = await loadApp(sampleData());
+    eq(app.$('#h-title'), null);
+    eq(app.$('#p-home h1'), null);
+    ok(!app.$('#p-home').textContent.includes('いつ出ればいい'));
+    app.click('#h-mode [data-mode="depart"]');
+    ok(!app.$('#p-home').textContent.includes('何時に着く'), '出発時刻のときも出ない');
+    ok(app.$('#h-rain'), '雨の日ボタンは残る');
+  });
+  test('「着きたい時刻」ではなく「到着時刻」と出る', async () => {
+    const app = await loadApp(sampleData());
+    eq(app.$('#h-mode [data-mode="arrive"]').textContent, '到着時刻');
+    eq(app.$('#h-time-label').textContent, '到着時刻');
+    app.click('#h-mode [data-mode="depart"]');
+    app.click('#h-mode [data-mode="arrive"]');
+    eq(app.$('#h-time-label').textContent, '到着時刻');
+    app.set('#h-arrive', '');
+    ok(app.$('#h-result').textContent.includes('到着時刻を入れてね'));
+    ok(!app.$('body').innerText.includes('着きたい'), '画面に出る文字に「着きたい」がない');
+  });
+  test('区間を、絵・区間・乗りもの名・かかる分に分ける', async () => {
+    const { w } = await loadApp();
+    eq(w.legParts({ type: 'walk', label: '🚲 自転車 家→竹下駅' }), { icon: '🚲', name: '自転車', place: '家→竹下駅' });
+    eq(w.legParts({ type: 'ride', label: '西鉄バス 老司→西鉄大橋駅' }), { icon: '🚌', name: '西鉄バス', place: '老司→西鉄大橋駅' });
+    eq(w.legParts({ type: 'ride', label: '西鉄天神大牟田線 大橋→西鉄福岡(天神)' }), { icon: '🚃', name: '西鉄天神大牟田線', place: '大橋→西鉄福岡(天神)' });
+    eq(w.legParts({ type: 'walk', label: '家→老司バス停' }), { icon: '🚶', name: '歩き', place: '家→老司バス停' });
+    eq(w.legParts({ type: 'ride', label: '電車' }), { icon: '🚃', name: '', place: '電車' });
+  });
+  test('道のりは、区間ごとに絵・かかる分の丸い印・待ち時間が出て、最後は到着', async () => {
+    const app = await loadApp(sampleData());
+    const box = app.$('#h-steps');
+    ok(box.classList.contains('new'), 'ふだんは新しい見た目');
+    const steps = [...box.querySelectorAll('.step')];
+    eq(steps.map((st) => st.className), ['step walk', 'step ride', 'step walk', 'step goal']);
+    eq(steps.map((st) => st.querySelector('.line i').textContent), ['🚶', '🚃', '🚶', '🏁']);
+    eq([...box.querySelectorAll('.dur')].map((d) => d.textContent), ['10分', '20分', '8分']);
+    eq(steps[3].textContent.includes('到着'), true);
+    const pill = app.w.getComputedStyle(box.querySelector('.ride .dur'));
+    eq(pill.color, 'rgb(255, 255, 255)', '乗りものの分は白い字の丸い印');
+  });
+  test('電車・バスは「◯時◯分発 → ◯時◯分着」が出る（歩き・自転車には出ない）', async () => {
+    const app = await loadApp(sampleData());
+    const box = app.$('#h-steps');
+    eq([...box.querySelectorAll('.when')].map((x) => x.textContent), ['8:15発 → 8:35着']);
+    eq(box.querySelector('.ride .when').textContent, '8:15発 → 8:35着');
+    eq(box.querySelectorAll('.walk .when').length, 0);
+    app.click('#h-opts details summary');
+    eq(app.$('#h-opts details .ride .when').textContent, '8:00発 → 8:20着', '1本前の道のりにも出る');
+  });
+  test('待ち時間があるときは「待ち◯分」と出る', async () => {
+    const d = sampleData();
+    // 電車（8:15→8:35）→ 歩き3分 → 8:40のバス：のりかえで2分待つ
+    d.routes[0].legs[2] = { type: 'walk', label: '駅→バス停', minutes: 3 };
+    d.routes[0].legs.push({ type: 'ride', label: 'バス 駅→大学', minutes: 5, times: { weekday: T('8:40 9:00'), holiday: [] } });
+    const app = await loadApp(d);
+    eq(app.$('#h-leave').textContent, '8:05');
+    eq([...app.$('#h-steps').querySelectorAll('.wait')].map((x) => x.textContent), ['⏱ 待ち2分']);
+    ok(app.$('#h-steps .step:nth-child(4) .wait'), 'バスの区間に出る');
+  });
+  test('道のりは横にはみ出さない（スマホの幅）', async () => {
+    const d = sampleData();
+    d.routes[0].legs[1].label = '西鉄バス［K］博多駅前A→九大ビッグオレンジ';
+    document.getElementById('app').closest('details').open = true; // 小窓を見える状態にしてはかる
+    const app = await loadApp(d);
+    const box = app.$('#h-steps');
+    ok(box.clientWidth > 200, '幅がある');
+    ok(box.scrollWidth <= box.clientWidth + 1, 'はみ出していない');
+  });
+  test('設定で「前の」見た目にもどせて、覚えておく', async () => {
+    const app = await loadApp(sampleData());
+    app.click('nav [data-tab="settings"]');
+    eq(app.$('#s-steps .on').dataset.style, 'new');
+    app.click('#s-steps [data-style="old"]');
+    eq(app.stored().stepStyle, 'old');
+    eq(app.$('#s-steps .on').dataset.style, 'old');
+    app.click('nav [data-tab="home"]');
+    ok(app.$('#h-steps').classList.contains('old'));
+    eq(app.$('#h-steps .line'), null, '前の見た目には丸い絵がない');
+    app.click('nav [data-tab="settings"]');
+    app.click('#s-steps [data-style="new"]');
+    app.click('nav [data-tab="home"]');
+    ok(app.$('#h-steps').classList.contains('new'));
   });
 });
 
