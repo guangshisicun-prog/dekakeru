@@ -201,7 +201,7 @@ group('ホーム画面', () => {
   });
   test('押せる行も、時刻は右にそろう', async () => {
     const app = await loadApp(sampleData());
-    const rules = [...app.w.document.styleSheets].flatMap((s) => [...s.cssRules]);
+    const rules = [...app.w.document.styleSheets].filter((s) => !s.href).flatMap((s) => [...s.cssRules]); // 外の文字（Google Fonts）は読めないので、アプリの中のものだけ
     const rule = rules.find((r) => r.selectorText === 'details.opt summary span:nth-child(2)');
     eq(rule && rule.style.marginLeft, 'auto');
   });
@@ -734,6 +734,58 @@ group('アイコン（2026-10-27）', () => {
     const img = new Image();
     await new Promise((res, rej) => { img.onload = res; img.onerror = () => rej(new Error('画像が読めない')); img.src = link.href + '?' + Date.now(); });
     eq([img.naturalWidth, img.naturalHeight], [180, 180]);
+  });
+});
+
+group('見た目：どうぶつの森風（2026-10-27）', () => {
+  test('ふだんは「どうぶつの森風」、設定で「前の」見た目にできる', async () => {
+    const app = await loadApp(sampleData());
+    ok(app.w.document.body.classList.contains('mori'));
+    app.click('nav [data-tab="settings"]');
+    eq(app.$('#s-theme .on').dataset.theme, 'mori');
+    app.click('#s-theme [data-theme="plain"]');
+    ok(!app.w.document.body.classList.contains('mori'));
+    eq(app.$('#s-theme .on').dataset.theme, 'plain');
+  });
+  test('乗りものの「◯分」は、どうぶつの森風でも白い字が読める（緑の地）', async () => {
+    const app = await loadApp(sampleData());
+    const cs = app.w.getComputedStyle(app.$('#h-steps .ride .dur'));
+    eq([cs.color, cs.backgroundColor], ['rgb(255, 255, 255)', 'rgb(79, 165, 83)']);
+  });
+  test('前の見た目から「どうぶつの森風」にもどすと、色・まるい文字・葉っぱの飾りになり、覚えておく', async () => {
+    const d = sampleData(); d.theme = 'plain';
+    const app = await loadApp(d);
+    ok(!app.w.document.body.classList.contains('mori'));
+    app.click('nav [data-tab="settings"]');
+    app.click('#s-theme [data-theme="mori"]');
+    const body = app.w.document.body;
+    ok(body.classList.contains('mori'));
+    eq(app.stored().theme, 'mori');
+    eq(app.$('#s-theme .on').dataset.theme, 'mori');
+    const cs = app.w.getComputedStyle(body);
+    eq(cs.backgroundColor, 'rgb(248, 240, 212)', 'クリーム色の背景');
+    ok(cs.fontFamily.includes('Zen Maru Gothic'), 'まるい文字');
+    const card = app.$('.card');
+    ok(app.w.getComputedStyle(card, '::before').backgroundImage.includes('svg'), 'カードに葉っぱ');
+    eq(app.w.getComputedStyle(card).borderTopLeftRadius, '26px');
+  });
+  test('どうぶつの森風は、開きなおしても続く。「いまの」にもどせる', async () => {
+    const d = sampleData(); d.theme = 'mori';
+    const app = await loadApp(d);
+    ok(app.w.document.body.classList.contains('mori'));
+    app.click('nav [data-tab="settings"]');
+    app.click('#s-theme [data-theme="plain"]');
+    ok(!app.w.document.body.classList.contains('mori'));
+    eq(app.stored().theme, 'plain');
+  });
+  test('設定の切りかえボタンは小さめ（横いっぱいにしない）', async () => {
+    document.getElementById('app').closest('details').open = true;
+    const app = await loadApp(sampleData());
+    app.click('nav [data-tab="settings"]');
+    for (const id of ['#s-theme', '#s-steps']) {
+      const seg = app.$(id), card = seg.closest('.card');
+      ok(seg.getBoundingClientRect().width < card.clientWidth * 0.8, id + ' は小さめ');
+    }
   });
 });
 

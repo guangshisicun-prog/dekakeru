@@ -8,6 +8,8 @@
 <title>myでかける</title>
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" href="apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&display=swap">
 <style>
   :root { --bg: #f6f6f4; --card: #fff; --text: #333; --sub: #888; --line: #e4e4e0; --main: #3b7dd8; --warn: #d9534f; }
   * { box-sizing: border-box; }
@@ -94,6 +96,40 @@
   .bus.next { background: #eef4fd; margin: 0 -16px; padding: 8px 16px; }
   .bus.next b::after { content: ' つぎ'; font-size: 11px; color: var(--main); }
   #t-past { display: block; width: 100%; margin: 0 0 4px; padding: 8px; font-size: 13px; color: var(--sub); background: none; border: 1px dashed var(--line); }
+  /* 設定の切りかえは小さめ */
+  .seg.small { display: inline-flex; }
+  .seg.small button { flex: 0 0 auto; font-size: 13px; padding: 6px 14px; }
+
+  /* ===== 見た目：どうぶつの森風（body.mori） ===== */
+  body.mori { --bg: #f8f0d4; --card: #fffbea; --text: #6b4a2b; --sub: #a5875c; --line: #ecdcae; --main: #4fa553; --warn: #e2735a;
+    font-family: "Zen Maru Gothic", -apple-system, "Hiragino Maru Gothic ProN", sans-serif; font-weight: 500;
+    background-color: var(--bg); background-image: radial-gradient(#efe2b8 2px, transparent 2.5px); background-size: 22px 22px; padding-bottom: calc(100px + env(safe-area-inset-bottom)); }
+  body.mori .card { position: relative; border-radius: 26px; border: 3px solid #eedfae; box-shadow: 0 4px 0 #e6d39c; padding: 16px 18px; }
+  body.mori .card::before { content: ''; position: absolute; top: -12px; right: 18px; width: 26px; height: 26px; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M6 26C6 13 15 5 28 4c-1 13-9 22-22 22z' fill='%237cc26b'/%3E%3Cpath d='M6 26C12 19 18 13 24 8' stroke='%234f9a45' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat center / contain; transform: rotate(-12deg); }
+  body.mori h1 { font-weight: 900; }
+  body.mori h2 { display: inline-block; background: #f6d46b; color: #6b4a2b; padding: 3px 14px; border-radius: 999px; font-size: 14px; font-weight: 700; }
+  body.mori label { color: var(--sub); font-weight: 700; }
+  body.mori input, body.mori select { border: 2px solid #eadba9; border-radius: 16px; background: #fffef6; color: var(--text); }
+  body.mori button { border: 2px solid #eadba9; border-radius: 999px; background: #fffef6; color: var(--text); font-weight: 700; box-shadow: 0 3px 0 #e6d39c; }
+  body.mori .seg button.on, body.mori button.primary { background: var(--main); color: #fff; border-color: #3f8b43; box-shadow: 0 3px 0 #3f8b43; }
+  body.mori #h-swap { border-radius: 20px; }
+  body.mori #h-rain { box-shadow: 0 2px 0 #e6d39c; }
+  body.mori #h-rain.on { background: #dff0fb; color: #3b86c4; border-color: #8cc3e8; }
+  body.mori .big { font-weight: 900; color: #6b4a2b; }
+  body.mori .opt { border-top: 2px dashed var(--line); }
+  body.mori nav { left: 12px; right: 12px; bottom: calc(10px + env(safe-area-inset-bottom)); padding-bottom: 0; border: 3px solid #eedfae; border-radius: 999px; background: #fffbea; box-shadow: 0 4px 0 #e6d39c; overflow: hidden; }
+  body.mori nav button { border: 0; box-shadow: none; background: none; border-radius: 0; }
+  body.mori nav button.on { color: var(--main); }
+  body.mori nav button.on::before { content: ''; display: inline-block; width: 14px; height: 14px; margin-right: 4px; vertical-align: -1px; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M6 26C6 13 15 5 28 4c-1 13-9 22-22 22z' fill='%237cc26b'/%3E%3Cpath d='M6 26C12 19 18 13 24 8' stroke='%234f9a45' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat center / contain; }
+  body.mori .steps.new .line i { background: #f3ead0; }
+  body.mori .steps.new .ride .line i { background: #dff0d8; }
+  body.mori .steps.new .ride .line::after { background: var(--main); }
+  body.mori .steps.new .goal .line i { background: #f6d46b; }
+  body.mori .steps.new .dur { background: #f3ead0; }
+  body.mori .steps.new .ride .dur { background: var(--main); color: #fff; }
+  body.mori .steps.new .when { background: #dff0d8; color: #3f8b43; }
+  body.mori .bus.next { background: #eef6e2; }
+  body.mori .bus .no { border-radius: 999px; }
 </style>
 </head>
 <body>
@@ -165,8 +201,15 @@
     <p class="muted" id="s-msg"></p>
   </div>
   <div class="card">
+    <h2>見た目</h2>
+    <div class="seg small" id="s-theme">
+      <button data-theme="mori">どうぶつの森風</button>
+      <button data-theme="plain">前の</button>
+    </div>
+  </div>
+  <div class="card">
     <h2>道のりの見た目</h2>
-    <div class="seg" id="s-steps">
+    <div class="seg small" id="s-steps">
       <button data-style="new">新しい</button>
       <button data-style="old">前の</button>
     </div>
@@ -347,7 +390,7 @@ function showPage(name) {
   window.scrollTo(0, 0); // 時刻表は、このあと「つぎの便」までスクロールする
   if (name === 'home') renderHome();
   if (name === 'tt') renderTimetable();
-  if (name === 'settings') renderStepStyle();
+  if (name === 'settings') { renderStepStyle(); renderTheme(); }
 }
 
 function currentDay() { return dayOverride || dayTypeOf(today()); }
@@ -558,6 +601,10 @@ $('#t-list').addEventListener('click', (e) => { if (e.target.id === 't-past') { 
 document.querySelectorAll('#h-day button').forEach((b) => b.addEventListener('click', () => { dayOverride = b.dataset.day; renderHome(); }));
 
 document.querySelectorAll('#s-steps button').forEach((b) => b.addEventListener('click', () => { data.stepStyle = b.dataset.style; save(); renderStepStyle(); }));
+document.querySelectorAll('#s-theme button').forEach((b) => b.addEventListener('click', () => { data.theme = b.dataset.theme; save(); applyTheme(); renderTheme(); }));
+function renderTheme() { document.querySelectorAll('#s-theme button').forEach((b) => b.classList.toggle('on', b.dataset.theme === (data.theme === 'plain' ? 'plain' : 'mori'))); }
+// 見た目（どうぶつの森風がふだん／前の見た目は plain）。body に mori をつけると色・形が変わる
+function applyTheme() { document.body.classList.toggle('mori', data.theme !== 'plain'); }
 function renderStepStyle() { document.querySelectorAll('#s-steps button').forEach((b) => b.classList.toggle('on', b.dataset.style === (data.stepStyle === 'old' ? 'old' : 'new'))); }
 $('#s-export').addEventListener('click', () => {
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -610,6 +657,7 @@ function importText(text) {
   return true;
 }
 
+applyTheme();
 renderHome();
 </script>
 </body>
