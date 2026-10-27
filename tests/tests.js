@@ -726,6 +726,17 @@ group('見出し・到着時刻・道のりの見た目（2026-10-23）', () => 
   });
 });
 
+group('アイコン（2026-10-27）', () => {
+  test('ホーム画面用のアイコン（180×180）がある', async () => {
+    const app = await loadApp();
+    const link = app.$('link[rel="apple-touch-icon"]');
+    ok(link, 'apple-touch-icon の指定がある');
+    const img = new Image();
+    await new Promise((res, rej) => { img.onload = res; img.onerror = () => rej(new Error('画像が読めない')); img.src = link.href + '?' + Date.now(); });
+    eq([img.naturalWidth, img.naturalHeight], [180, 180]);
+  });
+});
+
 // =====================================================================
 // 実行
 (async () => {
